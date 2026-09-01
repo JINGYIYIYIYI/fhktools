@@ -1,0 +1,307 @@
+---
+title: "A Practical Guide to FHK Productivity Decomposition"
+author: "Yu Li"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{A Practical Guide to FHK Productivity Decomposition}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(fhktools)
+```
+
+## 1. What is being decomposed?
+
+For a unit-level productivity measure $p_{it}$ and period-specific weight share
+$s_{it}$, aggregate productivity is
+
+$$P_t = \sum_i s_{it}p_{it}.$$
+
+Between endpoints 0 and 1, units are classified as continuers ($C$), entrants
+($E$), or exiters ($X$). `fhktools` implements
+
+$$
+\begin{aligned}
+P_1-P_0 =
+&\sum_{i\in C}s_{i0}(p_{i1}-p_{i0}) \\
+&+\sum_{i\in C}(s_{i1}-s_{i0})(p_{i0}-P_0) \\
+&+\sum_{i\in C}(s_{i1}-s_{i0})(p_{i1}-p_{i0}) \\
+&+\sum_{i\in E}s_{i1}(p_{i1}-P_0) \\
+&-\sum_{i\in X}s_{i0}(p_{i0}-P_0).
+\end{aligned}
+$$
+
+These lines correspond to within, between, cross, entry, and exit. The returned
+`exit` column already contains the minus sign.
+
+The identity is algebraic. A small residual verifies implementation and input
+consistency, but does not prove that productivity, weights, unit identifiers, or
+turnover are economically well defined.
+
+## 2. The minimum data contract
+
+Each endpoint panel should have:
+
+1. one row per analytical unit and period;
+2. a stable identifier across time;
+3. a numeric productivity measure;
+4. a non-negative raw size or share; and
+5. an ordered, non-factor period variable.
+
+```{r clean-data}
+data(fhk_example)
+str(fhk_example)
+```
+
+The analytical unit matters. If a firm can own several plants, a firm ID cannot
+be used with plant-level productivity unless the plants are first aggregated or
+a plant ID is used. The package checks duplicated unit-period rows before any
+group split, including duplicates that occur under different industry labels.
+
+## 3. Start with raw weights
+
+Using raw employment, sales, or output is generally safer than creating shares
+outside the function. The denominator then remains explicit in the result.
+
+```{r raw-weights}
+z <- fhk_decomposition(
+  fhk_example,
+  firm_col = "firm_id",
+  time_col = "year",
+  prod_col = "productivity",
+  weight_col = "employment",
+  t0 = 2010,
+  t1 = 2012
+)
+
+z[, c(
+  "P0", "P1", "aggregate_change",
+  "within", "between", "cross", "entry", "exit",
+  "component_sum", "residual", "identity_ok"
+)]
+```
+
+Important audit columns include:
+
+- `weight_total_t0` and `weight_total_t1`;
+- counts and weight shares of continuers, entrants, and exiters;
+- `turnover_basis` and `turnover_validated`; and
+- `residual` and `identity_ok`.
+
+## 4. Raw weights versus pre-computed shares
+
+The clean example includes global employment shares. They reproduce the raw
+weight calculation:
+
+```{r raw-share-equivalence}
+from_share <- fhk_decomposition(
+  fhk_example,
+  "firm_id", "year", "productivity", "global_share",
+  2010, 2012,
+  weight_is_share = TRUE
+)
+
+fields <- c("aggregate_change", "within", "between", "cross", "entry", "exit")
+rbind(raw = unlist(z[fields]), supplied_share = unlist(from_share[fields]))
+```
+
+When `weight_is_share = TRUE`, shares must sum to one at the declared scope.
+Automatic renormalization is off by default because it can conceal a wrong
+denominator. If renormalization is substantively justified, set
+`renormalize_input_shares = TRUE` and retain the audit fields in the archived
+results.
+
+## 5. Sample turnover versus genuine birth and death
+
+A two-endpoint panel identifies presence and absence. It does not automatically
+identify business birth and death. Survey rotation, intermittent reporting, and
+failed linkage can all mimic entry or exit.
+
+The example supplies registry-style activity windows:
+
+```{r validated-turnover}
+validated <- fhk_decomposition(
+  fhk_example,
+  "firm_id", "year", "productivity", "employment",
+  2010, 2012,
+  first_active_col = "first_active_year",
+  last_active_col = "last_active_year",
+  turnover_validation = "error"
+)
+
+validated[, c(
+  "n_continuers", "n_entrants", "n_exiters",
+  "share_entrants_t1", "share_exiters_t0",
+  "turnover_basis", "turnover_validated"
+)]
+```
+
+Entrants must have first activity in $(t_0,t_1]$; exiters must have last activity
+in $[t_0,t_1)$. Continuers must be active by $t_0$ and through $t_1$.
+
+If no registry fields exist, report the terms as *sample entry* and *sample
+exit*. Do not relabel them as business creation and destruction.
+
+## 6. Grouped analysis
+
+```{r grouped-analysis}
+g <- fhk_decomposition(
+  fhk_example,
+  "firm_id", "year", "productivity", "employment",
+  2010, 2012,
+  group_cols = "industry"
+)
+
+g[, c(
+  "industry", "P0", "P1", "aggregate_change",
+  "within", "between", "cross", "entry", "exit"
+)]
+```
+
+Weights are normalized within every group-period. These components describe
+within-industry productivity dynamics; they are not additive across industries.
+Use `fhk_hierarchical()` when both levels are needed:
+
+```{r hierarchical-analysis}
+h <- fhk_hierarchical(
+  fhk_example,
+  "firm_id", "year", "productivity", "employment",
+  2010, 2012,
+  group_cols = "industry"
+)
+
+h$overall[, c("aggregate_change", "identity_ok")]
+h$by_group[, c("industry", "aggregate_change", "identity_ok")]
+```
+
+If only within-industry shares are available, industry weights in the aggregate
+economy cannot be recovered. Raw weights or global shares are needed for a
+hierarchical analysis.
+
+## 7. Industry movers and endpoint-only groups
+
+`fhk_complex_example` is designed to trigger safeguards:
+
+```{r complex-data}
+data(fhk_complex_example)
+subset(
+  fhk_complex_example,
+  firm_id %in% c("B", "J") | employment == 0 | is.na(productivity_alt)
+)[, c("firm_id", "year", "industry", "productivity_alt", "employment")]
+```
+
+Firm B changes industry, and Construction appears only at the first endpoint.
+The default grouped analysis stops. If the industry movement is genuine and the
+old-group exit/new-group entry interpretation is intended, say so explicitly:
+
+```{r explicit-complex-policy}
+g_complex <- fhk_decomposition(
+  fhk_complex_example,
+  "firm_id", "year", "productivity", "employment",
+  2010, 2012,
+  group_cols = "industry",
+  first_active_col = "first_active_year",
+  last_active_col = "last_active_year",
+  group_change_action = "allow",
+  incomplete_group_action = "drop"
+)
+
+attr(g_complex, "skipped_groups")
+g_complex[, c(
+  "industry", "n_group_movers", "turnover_basis",
+  "global_firm_turnover_validated", "identity_ok"
+)]
+```
+
+The group-specific `turnover_validated` remains false when movers are present,
+because firm activity windows cannot validate entry into or exit from a group.
+The separate `global_firm_turnover_validated` field records the firm birth/death
+audit.
+
+When industry-code changes are administrative rather than economic, harmonize
+codes before decomposition instead of allowing movers.
+
+## 8. Missing values and zero weights
+
+Missing or non-finite required values stop by default. `na_action = "drop"`
+issues a warning because dropping a row can create an apparent entrant or
+exiter. Archive the warning and compare sample counts before and after any
+drop-based robustness specification.
+
+Zero-weight rows are retained and counted by default. They do not affect the
+weighted aggregate but do affect presence-based classifications. Alternatives
+are `zero_weight_action = "drop"` and `zero_weight_action = "error"`. A period
+or group with a zero total weight cannot be decomposed.
+
+## 9. Annual and other adjacent transitions
+
+```{r adjacent-transitions}
+annual <- fhk_adjacent(
+  fhk_example,
+  "firm_id", "year", "productivity", "employment",
+  expected_step = 1
+)
+
+annual[, c(
+  "period_start", "period_end", "aggregate_change",
+  "n_entrants", "n_exiters", "identity_ok"
+)]
+```
+
+The wrapper uses global observed periods, so groups share common endpoints.
+`expected_step` protects against treating the next observed year as the next
+calendar year when there is a gap.
+
+Long differences and annual decompositions answer different questions. A firm
+that enters after 2010 and exits before 2012 is absent from both long-difference
+endpoints but can contribute to annual transitions.
+
+## 10. Multiple productivity measures
+
+```{r multiple-measures}
+m <- fhk_multi_measure(
+  fhk_example,
+  "firm_id", "year",
+  c("productivity", "productivity_alt"),
+  "employment",
+  2010, 2012,
+  common_sample = TRUE
+)
+
+m[, c("measure", "aggregate_change", "within", "entry", "exit")]
+```
+
+For measures with different missingness, use `common_sample = TRUE` and
+`na_action = "drop"` to remove rows invalid for any requested measure once.
+Otherwise, apparently different decompositions may reflect different samples.
+
+## 11. Reporting checklist
+
+A reproducible empirical table should report or archive:
+
+1. analytical unit and identifier construction;
+2. endpoint periods and whether the comparison is annual or a long difference;
+3. productivity level/log definition and estimation method;
+4. raw weighting variable and denominator scope;
+5. group classification and crosswalk policy;
+6. sample-entry/exit versus registry-validated birth/death interpretation;
+7. missing-value, zero-weight, mover, and incomplete-group policies;
+8. continuer, entrant, and exiter counts and shares; and
+9. the accounting residual and `identity_ok`.
+
+Save the complete returned data frame before selecting columns for publication.
+The audit fields are part of the empirical record.
+
+## 12. Citation
+
+```{r citation}
+citation("fhktools")
+```
+
+The methodological reference is Foster, Haltiwanger, and Krizan (2001),
+“Aggregate Productivity Growth: Lessons from Microeconomic Evidence,”
+<https://doi.org/10.3386/w6803>.

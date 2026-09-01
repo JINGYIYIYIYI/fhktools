@@ -1,0 +1,29 @@
+Package: fhktools
+Title: Robust Foster-Haltiwanger-Krizan Productivity Decompositions
+Version: 0.1.0
+Authors@R:
+    person("Yu", "Li", email = "ylxmu1019@163.com",
+           role = c("aut", "cre"))
+Description: Implements defensive two-period and multi-period
+    Foster-Haltiwanger-Krizan productivity decompositions following
+    Foster, Haltiwanger, and Krizan (2001) <doi:10.3386/w6803>.
+    The package supports raw size weights or pre-computed shares,
+    grouped and economy-wide results, sample-entry and sample-exit audits,
+    optional business activity-window validation, group movers,
+    incomplete groups, multiple productivity measures, and strict
+    accounting-identity checks. It is designed to make consequential
+    data choices explicit rather than silently repair problematic inputs.
+License: MIT + file LICENSE
+URL: https://github.com/JINGYIYIYIYI/fhktools,
+    https://jingyiyiyiyi.github.io/fhktools/
+BugReports: https://github.com/JINGYIYIYIYI/fhktools/issues
+Depends: R (>= 4.1.0)
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Encoding: UTF-8
+Language: en-US
+LazyData: true

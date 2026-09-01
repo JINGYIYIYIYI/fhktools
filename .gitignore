@@ -1,0 +1,10 @@
+.DS_Store
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+docs/
+README.html
+revdep/
+*.tar.gz
+*.Rcheck/

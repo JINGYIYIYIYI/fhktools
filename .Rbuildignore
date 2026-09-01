@@ -1,0 +1,10 @@
+^\.github$
+^.*\.Rproj$
+^\.Rproj\.user$
+^README\.Rmd$
+^data-raw$
+^_pkgdown\.yml$
+^docs$
+^CODE_OF_CONDUCT\.md$
+^CONTRIBUTING\.md$
+

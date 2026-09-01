@@ -1,0 +1,9 @@
+bibentry(
+  bibtype = "Manual",
+  title = "fhktools: Robust Foster-Haltiwanger-Krizan Productivity Decompositions",
+  author = person("Yu", "Li"),
+  year = "2026",
+  note = "R package version 0.1.0",
+  url = "https://github.com/JINGYIYIYIYI/fhktools"
+)
+

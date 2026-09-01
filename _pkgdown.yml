@@ -1,0 +1,53 @@
+url: https://jingyiyiyiyi.github.io/fhktools/
+
+template:
+  bootstrap: 5
+  bootswatch: flatly
+
+home:
+  title: "fhktools: Robust FHK productivity decomposition"
+  description: >
+    Defensive Foster-Haltiwanger-Krizan productivity decompositions for
+    real-world firm and establishment panels.
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github]
+  components:
+    articles:
+      text: Tutorials
+      menu:
+      - text: English guide
+        href: articles/fhk-introduction.html
+      - text: 中文完整教程
+        href: articles/fhk-zh.html
+
+reference:
+- title: Package overview
+  contents:
+  - fhktools-package
+- title: Core decomposition
+  contents:
+  - fhk_decomposition
+  - fhk_hierarchical
+- title: Repeated and comparative workflows
+  contents:
+  - fhk_adjacent
+  - fhk_multi_measure
+- title: Example data
+  contents:
+  - fhk_example
+  - fhk_complex_example
+
+articles:
+- title: Tutorials
+  navbar: Tutorials
+  contents:
+  - fhk-introduction
+  - fhk-zh
+
+footer:
+  structure:
+    left: developed_by
+    right: built_with
