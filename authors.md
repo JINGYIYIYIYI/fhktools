@@ -7,7 +7,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/JINGYIYIYIYI/fhktools/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/JINGYIYIYIYI/fhktools/blob/v0.1.0/inst/CITATION)
 
 Li Y (2026). *fhktools: Robust Foster-Haltiwanger-Krizan Productivity
 Decompositions*. R package version 0.1.0,
